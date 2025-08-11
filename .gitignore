@@ -1,0 +1,5 @@
+﻿anomalydiffusion/checkpoints/
+*.pckl
+*.pt
+*.pth
+*.ckpt
