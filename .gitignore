@@ -3,3 +3,31 @@
 *.pt
 *.pth
 *.ckpt
+# ControlNet models (skip heavy files)
+ControlNet/models/**
+!ControlNet/models/**/*.yaml
+!ControlNet/models/**/README.md
+!ControlNet/models/**/.gitkeep
+
+# Common weight formats
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.pkl
+*.pckl
+# Ignore ControlNet model weights
+ControlNet/models/*
+!ControlNet/models/.gitkeep
+
+# Extra safety: ignore common weight formats anywhere
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.pkl
+*.pckl
