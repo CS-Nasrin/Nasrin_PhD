@@ -92,11 +92,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--sample_name",
-        default='capsule',
+        default='bottle',
     )
     parser.add_argument(
         "--anomaly_name",
-        default='crack',
+        default='broken_large',
     )
     parser.add_argument(
         "--adaptive_mask",
@@ -117,10 +117,18 @@ if __name__ == "__main__":
     model.prepare_spatial_encoder(optimze_together=True)
     ckpt = torch.load('logs/anomaly-checkpoints/checkpoints/spatial_encoder.pt')
     model.embedding_manager.spatial_encoder_model.load_state_dict(ckpt)
+    #model.embedding_manager.load('logs/anomaly-checkpoints/checkpoints/embeddings.pt')
     model.embedding_manager.load('logs/anomaly-checkpoints/checkpoints/embeddings.pt')
     dataset = Positive_sample_with_generated_mask(opt.data_root,sample_name, anomaly_name, repeats=1, size=256, set='train',
                                                       per_image_tokens=False)
-    dataloader = DataLoader(dataset, batch_size=8, shuffle=False, drop_last=True)
+    dataloader = DataLoader(dataset, batch_size=8, shuffle=False, drop_last=False)
+    print(f"[DEBUG] Number of samples in dataloader: {len(dataloader.dataset)}")
+
+    for idx, batch in enumerate(dataloader):
+        print(f"[DEBUG] Dataloader test - batch {idx}")
+        break  # We just want to make sure it's yielding data
+ 
+
     save_dir = 'generated_dataset/%s/%s' % (sample_name, anomaly_name)
     os.makedirs(save_dir,exist_ok=True)
     os.makedirs(os.path.join(save_dir,'image'), exist_ok=True)
@@ -129,18 +137,38 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(save_dir, 'ori'), exist_ok=True)
     os.makedirs(os.path.join(save_dir, 'recon'), exist_ok=True)
     cnt=0
+
+    print("[DEBUG] Starting inference loop")
     with torch.no_grad():
-        for epoch in range(1000):
+        for epoch in range(1):
             for idx, batch in enumerate(dataloader):
-                if cnt>500:
-                    exit()
+                # if cnt>5:
+                #     exit()
+
+                print(f"[DEBUG] Processing batch {idx}, total saved so far: {cnt}")
+
                 with model.ema_scope():
                     mask=batch['mask'].cpu()
                     ori_images=batch['image'].permute(0,3,1,2)
+
+                    print(f"[DEBUG] Batch keys: {list(batch.keys())}")
+                    print(f"[DEBUG] Image shape: {batch['image'].shape}, Mask shape: {batch['mask'].shape}")
+
                     images=model.log_images(batch,sample=False,inpaint=True,unconditional_only=True,adaptive_mask=opt.adaptive_mask)
+                    
+                    # === DEBUG start ===
+                    print("[DEBUG] log_images returned keys:", images.keys())
+                    if 'samples_inpainting' not in images:
+                        print("[ERROR] samples_inpainting not found in log_images output!")
+                        continue  # Skip this batch
+                    if images['samples_inpainting'] is None or images['samples_inpainting'].nelement() == 0:
+                        print("[ERROR] samples_inpainting is empty or None!")
+                        continue
+                    # === DEBUG end ===
                     imgs=images['samples_inpainting'].cpu()
                     recon_image=images['reconstruction']
                     for i in range(len(imgs)):
+                        print(f"[DEBUG] Saving image {cnt}")
                         save_image((imgs[i] + 1) / 2, os.path.join(save_dir, 'image', '%d.jpg' % cnt), normalize=False)
                         save_image((ori_images[i] + 1) / 2, os.path.join(save_dir, 'ori', '%d.jpg' % cnt),
                                    normalize=False)
